@@ -177,9 +177,9 @@ grain_data* encode_der(unsigned long long len,int *der_len){
 	*(der_len)=temp+1;
     return der;
 }
-void aead_encrypt(unsigned char *m,unsigned long long mlen,
+unsigned char* aead_encrypt(unsigned char *m,unsigned long long mlen,
                 unsigned char *ad,unsigned long long adlen,
-                bitset<128> k,bitset<96> non)
+                bitset<128> k,bitset<96> non,unsigned long long *cl)
 {
     grain_state grain;
     init(&grain,k,non);
@@ -267,19 +267,110 @@ void aead_encrypt(unsigned char *m,unsigned long long mlen,
         acc_idx++;
         c_len++;
     }
+    (*cl)=c_len;
     cout<<"The ciphertext is(hexadecimal):";
+    unsigned char *cipher=(unsigned char*)calloc(mlen+8,sizeof(unsigned char));
     for(int i=0;i<mlen+8;i++){
         unsigned char val=0;
         for(int j=7;j>=0;j--){
             val|=(c[i].message[j]&1)<<j;
         }
-        printf("%02x",val);
+        cipher[i]=val;
+	printf("%02x",val);
     }
     cout<<endl;
     if(ader!=NULL) free(ader);
     if(data!=NULL) free(data);
     if(adq!=NULL) free(adq);
-    
+    return cipher;
+}
+void aead_decrypt(unsigned char *c,unsigned long long clen,
+                unsigned char *ad,unsigned long long adlen,
+                bitset<128> k,bitset<96> non)
+{
+    grain_state grain;
+    init(&grain,k,non);
+    grain_data *data=init_data(c,clen);
+    grain_data *ader=NULL;
+    int aderlen=0;
+    grain_data *adq=NULL,*temp2;
+    temp2=encode_der(adlen,&aderlen);
+    ader=(grain_data*)calloc(aderlen+adlen,sizeof(grain_data));
+    for(int i=0;i<aderlen;i++){
+        ader[i].message=temp2[i].message;
+    }
+    if(ad!=NULL){
+        adq=(grain_data*)calloc(adlen,sizeof(grain_data));
+        for(auto i=0;i<adlen;i++){
+            for(int j=0;j<8;j++){
+                adq[i].message[j]=(ad[i]>>(7-j)&1);
+            }
+        }
+        for(int i=aderlen;i<aderlen+adlen;i++){
+            ader[i].message=adq[i-aderlen].message;
+        }
+    }
+    free(temp2);
+    unsigned long long ad_cnt=0;
+    bitset<8> adval;
+   
+    for(unsigned long long i=0;i<aderlen+adlen;i++){
+        for(int j=0;j<16;j++){
+            bitset<1> z_next=next_z(&grain,0,0);
+            if(j%2==0){
+                //continue;
+            }
+            else{
+                bitset<8> temp;
+                temp.set(7-(ad_cnt%8));
+                adval=(ader[ad_cnt/8].message)&temp;
+                if(adval.any()){
+                    accumulate(&grain);
+                }
+                auth_shift(grain.auth_sr,z_next);
+                ad_cnt++;
+            }
+        }
+    }
+    unsigned long long mlen=0;
+    grain_data *msg=(grain_data*)calloc(clen-8,sizeof(grain_data));
+    bitset<1> msgbit;
+    for(unsigned long long i=0;i<clen-8;i++){
+        for(int j=0;j<8;j++){
+            bitset<1> z_next=next_z(&grain,0,0);
+            msgbit[0]=data[i].message[j]^z_next[0];
+            msg[i].message[j]=msgbit[0];
+            z_next=next_z(&grain,0,0);
+            if(msgbit.all()){
+                accumulate(&grain);
+            }
+            auth_shift(grain.auth_sr,z_next);
+        }
+        mlen++;
+    }
+    cout<<"after decryption"<<endl;
+    unsigned char *cipher=(unsigned char*)calloc(clen-8,sizeof(unsigned char));
+    for(int i=0;i<clen-8;i++){
+        unsigned char val=0;
+        for(int j=7;j>=0;j--){
+            val|=(msg[i].message[j]&1)<<j;
+        }
+        cipher[i]=val;
+        printf("%c",cipher[i]);
+    }
+    cout<<endl;
+    cout<<"the length of plaintext is "<<mlen<<endl;
+    next_z(&grain,0,0);
+    accumulate(&grain);
+    int flag=0;
+    for(int i=0;i<64;i++){
+        if(grain.auth_acc[i]!=data[clen-8+i/8].message[i%8]){
+            flag=1;
+            break;
+        }
+    }
+    if(flag==0) cout<<"0"<<endl;
+    else cout<<"-1"<<endl;
 }
 int main(){
     bitset<128> k;
@@ -334,6 +425,9 @@ int main(){
         }
     }
     grain_state grain;
-    aead_encrypt(m,mlen,ad,adlen,k,iv);
+    unsigned long long clen;
+    unsigned char* cipher;
+    cipher=aead_encrypt(m,mlen,ad,adlen,k,iv,&clen);
+    aead_decrypt(cipher,clen,ad,adlen,k,iv);
     return 0;
 }

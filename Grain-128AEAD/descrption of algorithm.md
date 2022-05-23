@@ -44,6 +44,13 @@
         第四步，$c^{'}_i=m^{'}_i\oplus z_id_i,0\le i\leq M+len-1$并同时使用$z^{'}_i$更新累加器和寄存器，产生$A_{M+mlen+1}$作为MAC(实际上的结果只有64位)；  
         第五步，拼接，$c=(c^{'}_M,c^{'}_{M+1},\dots ,c^{'}_{M+mlen-1})||A_{M+mlen-1}$并输出.  
         * 上文提到的Encode的功用类似于DER编码，在Encode函数中如果adlen不超过127，则Encode得到一个字节的内容高位为0，剩余7位填入adlen的编码；adlen大于127，输出的则第一个字节的内容高位填1，剩余7位填入adlen的字节数编码，之后的几个字节填入adlen的编码。
-
+  3. Grain-128AEAD的解密模式  
+      * NIST API下此算法的解密步骤  
+        |input: ad,adlen,c,clen,key,nonce;   output:m|  
+        第一步初始化，同加密步骤；  
+        第二步扩展密文c为$c^{'}=Encode(adlen)||ad||c_0c_1\dots c_{clen-65}||0x80$;  
+        第三步同加密时设置M,但mlen=clen-64,$d_i$设置同理;  
+        第四步,$m^{'}_i=c^{'}_i\oplus z_id_i,0\le i\leq M+len-1$,同时不断更新累加器，将解密结束后的累加器向量作为用于校验的MAC,表示为$A_{M+mlen+1}$;  
+        第五步,检验$c_{clen-64}\dots c_{clen-1}$是否等于$A_{M+mlen+1}$,若是则裁剪$m^{'}$,输出时$m=m^{'}_M,\dots m^{'}_{M+mlen-1}$,输出0;否则输出-1。   
 
 
