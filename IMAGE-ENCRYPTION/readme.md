@@ -4,10 +4,13 @@
 
 &emsp;&emsp;此算法先将图片随机分成k个垂直矩形，所以要生成k个和为h的伪随机数列 $n_1,n_2...n_k$ ,令$q_i= \frac{h}{n_i}$，$N_i=n_1+...+n_i$。令原像素位置为$（x,y）$,对于$N_{i-1} < x < N_i$，通过
 
-\left\{\begin{matrix}
-x' = {q_i(x-N_i)+y　mod　q_i}\
- \\y '= \frac{y-y　mod　q_i}{q_i}+N_i\\
-\end{matrix}\right.
+$$ \left\{
+\begin{matrix}
+ x = {q_i(x-N_i)+y　mod　q_i}\\
+y = \frac{y-y　mod　q_i}{q_i}+N_i\\ 
+\end{matrix}
+\right.
+$$
 对图像像素位置进行置乱操作。
 
 ## 二、扩散
@@ -18,9 +21,9 @@ x' = {q_i(x-N_i)+y　mod　q_i}\
 
 &emsp;&emsp;计算混沌值
 
- $x_i =μ_i * x_i * (1-x_i)$
+ $$x_i =μ_i * x_i * (1-x_i)$$
 
-$r_i=int(x*255)$
+$$r_i=int(x*255)$$
 
 通过公式&emsp;$imgn(x,y)=((r_1+r_2) \bigoplus r_3+img(x,y))　mod　256$  改变置乱后的像素灰度值实现扩散，其中$img(x,y)$为置乱后$(x,y)$处的像素灰度值，$imgn(x,y)$为通过Logistic映射扩散后的灰度值。  
 <br/><br/>
