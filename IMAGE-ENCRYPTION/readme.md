@@ -4,13 +4,10 @@
 
 &emsp;&emsp;此算法先将图片随机分成k个垂直矩形，所以要生成k个和为h的伪随机数列 $n_1,n_2...n_k$ ,令$q_i= \frac{h}{n_i}$，$N_i=n_1+...+n_i$。令原像素位置为$（x,y）$,对于$N_{i-1} < x < N_i$，通过
 
-$$ \left\{
-\begin{matrix}
+\left\{\begin{matrix}
  x = {q_i(x-N_i)+y　mod　q_i}\\
-y = \frac{y-y　mod　q_i}{q_i}+N_i\\ 
-\end{matrix}
-\right.
-$$
+y = \frac{y-y　mod　q_i}{q_i}+N_i
+\end{matrix}\right.
 对图像像素位置进行置乱操作。
 
 ## 二、扩散
